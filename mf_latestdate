@@ -1,0 +1,47 @@
+/**
+  @file
+  @brief Returns the latest datetime for chosen folder
+  usage:
+      %let latestdate = %mf_latestdate(fpath=/some/location, where=lowcase(ext) eq 'sas7bdat');
+
+<h4> Dependencies </h4>
+  @li mf_getmoddate.sas
+  @li mp_dirlist.sas
+
+  @param path= path of folder to look inside
+  @param where= where clause
+  @returns SAS datetime. 0 if no files were found
+
+  @version 9.4
+  @author Jeremy Teoh
+**/
+
+%macro mf_latestdate(path=, where=1
+)/*/STORE SOURCE*/;
+  %local retval rc newval allfiles numfiles;
+
+  %let retval = 0;
+
+  %let rc = %sysfunc(dosubl(%nrstr(
+    %mp_dirlist(path=&path., outds=work._dirs);
+
+    proc sql noprint;
+        select filepath, count(*) 
+          into :allfiles separated by '#', :numfiles trimmed
+        from _dirs
+        where file_or_folder eq 'file' and (&where.);
+    quit;
+
+    proc datasets lib=work nolist;
+      delete _dirs;
+      run;
+    quit;
+  )));
+
+  %if &numfiles gt 0 %then %do nfile = 1 %to &numfiles.;
+    %let newval = %mf_getmoddate(fpath=%qscan(&allfiles,&nfile,#));
+    %if &newval. gt &retval. %then %let retval = &newval.;
+  %end;
+    
+  &retval
+%mend;
