@@ -1,0 +1,41 @@
+/**
+@file
+@brief Combines new values onto an existing list
+@details If a new value already exists in the old list, it is skipped
+  Converts space-separated and comma-separated list inputs into a single-space-separated output. 
+  Useful for dynamic construction of lists that need unique members
+  Usage:
+     %let newlist = %mf_uniquecombine(&oldList, &newElements); 
+     %let newlist = %mf_uniquecombine(%str(&oldCsvList), %str(firstNewThing, SecondNewThing)); 
+     %let keepvars = %mf_uniquecombine(%lowcase(&keepvars), parcat1); 
+
+@param oldvals = existing list (space or comma-separated)
+@param newvals = new values (space or comma-separated)
+
+**/
+
+%macro mf_uniquecombine(oldvals, newvals
+)/*/STORE SOURCE*/;
+  %local combined inewval ioldval thisval isnew;
+
+  %* Standardize to single-space-separated list;
+  %let combined = %sysfunc(compbl(%sysfunc(tranwrd( &oldvals., %str(,), %str( ) ))));
+
+  %* Add each input value to list in turn;
+  %if %sysevalf(%superq(newvals) ne,boolean) %then %do;
+    %let newvals = %sysfunc(compbl(%sysfunc(tranwrd( &newvals, %str(,), %str( ) ))));
+    %do inewval = 1 %to %sysfunc(countw(&vals, %str( ) ));
+      %let thisval= %scan(&vals, &inewval);
+      %let isnew = 1;
+      %* Detect if variable already in the list;
+      %do ioldval= 1 %to %sysfunc(countw(&&&oldvals, %str( )));
+        %if &thisval = %scan(&&&oldvals, &ioldval, %str( )) %then 
+          %let isnew = 0; %* Flag that variable is already in list;
+      %end;
+      %* New variable appended to list;
+      %if &isnew %then %let combined= &combined &thisval;
+    %end;
+  %end;
+
+  &combined
+%mend
